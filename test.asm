@@ -1,0 +1,24 @@
+(INIT)
+@0
+D=M
+
+@1
+D=D+M
+
+(INIT_1)
+@2
+M=D
+
+@INIT
+D+1; JLE
+
+(INIT_3)
+@3
+D=M
+
+@INIT_1
+0; JMP
+
+@INIT_3
+0; JMP
+
