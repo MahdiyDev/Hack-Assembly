@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 
+#define SYMBOL_TABLE_IMPLEMENTATION
 #include "symbol_table.h"
 #include "code.h"
 
@@ -44,6 +45,7 @@ typedef struct {
 
 hack_asm init_hack_asm();
 void destroy_hack_asm(hack_asm* _asm);
+void parse_instructions(char *source, hack_asm* _asm);
 
 instruct_st* parse_instruct(symbol_table* table, char* source);
 instruct_st* create_instruct_a(symbol_table* table, char* instruction_str, instruct_st* instruct);
@@ -56,8 +58,6 @@ char* assemble_instruct(instruct_st* instruct, char* instruct_bin);
 #include <ctype.h>
 #include <string.h>
 
-#define SYMBOL_TABLE_IMPLEMENTATION
-#include "symbol_table.h"
 #define UTILS_IMPLEMENTATION
 #include "utils.h"
 
@@ -85,8 +85,49 @@ void destroy_hack_asm(hack_asm* _asm)
     destroy_instructions(_asm->instruct_list);
 }
 
+void parse_instructions(char *source, hack_asm* _asm) {
+    char instruct_bin[BUS_SIZE + 1];
 
-instruct_bin_list* curr_instruct_list = NULL;
+    instruct_st* instruct = NULL;
+    instruct_bin_list* current_instruction_list = NULL;
+
+    int count = 0;
+    char** lines = str_split(source, "\n", &count);
+
+    for (int i = 0; i < count; i++) {
+        instruct = parse_instruct(_asm->table, lines[i]);
+
+        if (instruct == NULL) continue;
+        char* assembled_instruct = assemble_instruct(instruct, instruct_bin);
+
+        if (assembled_instruct == NULL) continue;
+
+        if (_asm->instruct_list == NULL) {
+            _asm->instruct_list = malloc(sizeof(instruct_bin_list));
+            if (_asm->instruct_list == NULL) {
+                fprintf(stderr, "cannot alocate memory!\n");
+                return;
+            }
+            current_instruction_list = _asm->instruct_list;
+            current_instruction_list->next = NULL;
+            strncpy(current_instruction_list->instruction, instruct_bin, BUS_SIZE);
+            current_instruction_list->instruction[BUS_SIZE] = '\0';
+            continue;
+        }
+
+        current_instruction_list->next = malloc(sizeof(instruct_bin_list));
+        if (current_instruction_list->next == NULL) {
+            fprintf(stderr, "cannot alocate memory!\n");
+            return;
+        }
+
+        strncpy(current_instruction_list->next->instruction, instruct_bin, BUS_SIZE);
+        current_instruction_list->next->instruction[BUS_SIZE] = '\0';
+
+        current_instruction_list = current_instruction_list->next;
+        current_instruction_list->next = NULL;
+    }
+}
 
 instruct_st* parse_instruct(symbol_table* table, char* instruction_str)
 {

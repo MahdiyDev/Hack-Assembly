@@ -5,53 +5,7 @@
 #include <libgen.h>
 
 #define HACK_API_IMPLEMENTATION
-#define SYMBOL_TABLE_IMPLEMENTATION
 #include "hack_api.h"
-
-instruct_bin_list* parse_instructions(FILE* fp, hack_asm* _asm) {
-    char line[INSTR_SIZE];
-    char instruct_bin[BUS_SIZE + 1];
-
-    instruct_st* instruct = NULL;
-    instruct_bin_list* instruction_list = NULL;
-    instruct_bin_list* current_instruction_list = NULL;
-
-    while (fgets(line, sizeof(line), fp)) {
-        instruct = parse_instruct(_asm->table, line);
-
-        if (instruct != NULL) {
-            char* assembled_instruct = assemble_instruct(instruct, instruct_bin);
-
-            if (assembled_instruct != NULL) {
-                if (instruction_list == NULL) {
-                    instruction_list = malloc(sizeof(instruct_bin_list));
-                    if (instruction_list == NULL) {
-                        fprintf(stderr, "cannot alocate memory!\n");
-                        return NULL;
-                    }
-                    current_instruction_list = instruction_list;
-                    strncpy(current_instruction_list->instruction, instruct_bin, BUS_SIZE);
-                    current_instruction_list->instruction[BUS_SIZE] = '\0';
-                    continue;
-                }
-
-                current_instruction_list->next = malloc(sizeof(instruct_bin_list));
-                if (current_instruction_list->next == NULL) {
-                    fprintf(stderr, "cannot alocate memory!\n");
-                    return NULL;
-                }
-
-                strncpy(current_instruction_list->next->instruction, instruct_bin, BUS_SIZE);
-                current_instruction_list->next->instruction[BUS_SIZE] = '\0';
-
-                current_instruction_list = current_instruction_list->next;
-                current_instruction_list->next = NULL;
-            }
-        }
-    }
-
-    return instruction_list;
-}
 
 #define NAME_MAX 256
 
@@ -156,9 +110,27 @@ int write_binary_instructions(char *filename, instruct_bin_list *instructions, b
     return 0;
 }
 
+char* readfile(FILE* fp)
+{
+    long file_size;
+    fseek(fp, 0L, SEEK_END);
+    file_size = ftell(fp);
+    fseek(fp, 0L, SEEK_SET);
+
+    char* text_data = (char*)malloc(file_size);
+    int ch;
+    int i = 0;
+    while ((ch = fgetc(fp)) != EOF) {
+        text_data[i] = ch;
+        i++;
+    }
+    return text_data;
+}
+
 int main(int argc, char **argv) {
     FILE* fp = NULL;
     char *filename;
+    long file_size;
 
     if (argc < 2) {
         fprintf(stderr, "usage: %s file.asm\n", argv[0]);
@@ -177,7 +149,9 @@ int main(int argc, char **argv) {
 
     hack_asm _asm = init_hack_asm();
 
-    _asm.instruct_list = parse_instructions(fp, &_asm);
+    char* source = readfile(fp);
+
+    parse_instructions(source, &_asm);
 
     bool is_hex = false;
     if (argc > 2) {
