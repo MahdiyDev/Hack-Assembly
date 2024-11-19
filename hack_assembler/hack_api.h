@@ -46,6 +46,7 @@ typedef struct {
 hack_asm init_hack_asm();
 void destroy_hack_asm(hack_asm* _asm);
 void parse_instructions(char *source, hack_asm* _asm);
+void print_instruction(FILE* fp, hack_asm* _asm);
 
 instruct_st* parse_instruct(symbol_table* table, char* source);
 instruct_st* create_instruct_a(symbol_table* table, char* instruction_str, instruct_st* instruct);
@@ -83,6 +84,15 @@ void destroy_hack_asm(hack_asm* _asm)
 {
     destroy_table(_asm->table);
     destroy_instructions(_asm->instruct_list);
+}
+
+void print_instruction(FILE* fp, hack_asm* _asm)
+{
+    instruct_bin_list *instruction = _asm->instruct_list;
+    while (instruction) {
+        fprintf(fp, "%s\n", instruction->instruction);
+        instruction = instruction->next;
+    }
 }
 
 void parse_instructions(char *source, hack_asm* _asm) {

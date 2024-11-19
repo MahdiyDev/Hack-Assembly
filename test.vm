@@ -1,0 +1,4 @@
+push local 3
+pop local 3
+push constant 4
+add
