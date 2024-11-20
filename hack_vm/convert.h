@@ -84,8 +84,7 @@ const sybmol_map operation_symbol[] = {
 
 string_view map_get(const sybmol_map* map, int count, string_view key) {
     for (int i = 0; i < count; i++) {
-        string_view map_key = sv_from_cstr(map[i].key);
-        if (sv_equal(key, map_key)) {
+        if (sv_equal_cstr(key, map[i].key)) {
             return sv_from_cstr(map[i].value);
         }
     }
@@ -97,10 +96,10 @@ string_view map_get(const sybmol_map* map, int count, string_view key) {
 string_view get_base_address_index(string_view segment, string_view index) {
     const char* segments[] = { "static", "temp", "internal" };
 
-    if (sv_equal(segment, sv_from_cstr("constant"))) {
+    if (sv_equal_cstr(segment, "constant")) {
         return index;
-    } else if (sv_equal(segment, sv_from_cstr("pointer"))) {
-        return sv_equal(index, sv_from_cstr("0"))
+    } else if (sv_equal_cstr(segment, "pointer")) {
+        return sv_equal_cstr(index, "0")
             ? map_get_carr(segment_symbol, sv_from_cstr("this"))
             : map_get_carr(segment_symbol, sv_from_cstr("that"));
     } else if (sv_in_carr(segment, segments)) {
@@ -124,7 +123,7 @@ string_view get_base_address(string_view segment) { return get_base_address_inde
 char* get_addressf(string_view segment, string_view index, const char* filename) {
     char* address = NULL;
 
-    if (!sv_equal(segment, sv_from_cstr("static"))) {
+    if (!sv_equal_cstr(segment, "static")) {
         string_view base_address = get_base_address_index(segment, index);
         address = sb_sprintf("@%.*s\n", base_address.count, base_address.data);
     } else {
@@ -140,7 +139,7 @@ string_view push(string_view segment, string_view index, const char* filename) {
     string_view segment_type;
     string_builder* sb = sb_init(NULL);
 
-    if (sv_equal(segment, sv_from_cstr("constant"))) {
+    if (sv_equal_cstr(segment, "constant")) {
         sb_add_str(sb, "D=A\n");
 
         segment_type = sv_from_cstr("constant");
@@ -180,7 +179,7 @@ string_view pop(string_view segment, string_view index, const char* filename) {
 
     char* address = get_addressf(segment, index, filename);
 
-    if (sv_equal(segment, sv_from_cstr("constant"))) {
+    if (sv_equal_cstr(segment, "constant")) {
         fprintf(stderr, "Invalid pop into constant.\n");
         sb_free(sb);
         exit(EXIT_FAILURE);
@@ -233,7 +232,7 @@ string_view arithmetic(string_view operation, int counter) {
             sb_add_str(sb, "@13\n");
             sb_add_str(sb, "D=M\n");
             sb_add_str(sb, "@14\n");
-            sb_add_str(sb, sb_sprintf("D=M%sD\n", op.data));
+            sb_add_str(sb, sb_sprintf("D=D%sM\n", op.data));
             sb_add_str(sb, "@15\n");
             sb_add_str(sb, "M=D\n");
         } else {

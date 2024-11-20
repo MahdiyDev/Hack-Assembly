@@ -1,6 +1,6 @@
 #pragma once
 
-char* decimal_to_binary(int n, unsigned int bus_size);
+char* decimal_to_bin(int n, unsigned int bus_size);
 char* bin_to_hex(char* bin, unsigned int bus_size);
 char** str_split(char* source, const char* splitter, int* count);
 
@@ -8,29 +8,6 @@ char** str_split(char* source, const char* splitter, int* count);
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-char* decimal_to_binary(int n, unsigned int bus_size) {
-	char* bin;
-	int i = 0, b;
-
-	if (!(bin = (char*)malloc(sizeof(char) * bus_size))) {
-		fprintf(stderr, "cannot alocate memory!\n");
-		return NULL;
-	}
-
-	for (b = 14; b >= 0; b--) {
-	    int bit = n >> b;
-
-	    if (bit & 1) {
-	    	bin[i] = '1';
-	    }
-	    else {
-	     	bin[i] = '0';
-	    }
-	    i++;
-  	}
-  	return bin;
-}
 
 char* bin_to_hex(char* bin, unsigned int bus_size) {
     char* buffer = (char*)malloc(sizeof(char)*bus_size);

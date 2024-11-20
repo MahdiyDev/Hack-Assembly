@@ -24,31 +24,15 @@ D=A
 @THAT
 M=D
 
-// push local 3
-@LCL
-D=M
-@3
-A=D+A
-D=M
+// push constant 7
+@7
+D=A
 @SP
 M=M+1
 A=M-1
 M=D
-// pop local 3
-@LCL
-D=M
-@3
-D=D+A
-@15
-M=D
-@SP
-AM=M-1
-D=M
-@15
-A=M
-M=D
-// push constant 4
-@4
+// push constant 8
+@8
 D=A
 @SP
 M=M+1
@@ -68,7 +52,30 @@ M=D
 @13
 D=M
 @14
-D=M+D
+D=D+M
+@15
+M=D
+@15
+D=A
+@SP
+M=M+1
+A=M-1
+M=D
+// add
+@SP
+AM=M-1
+D=M
+@13
+M=D
+@SP
+AM=M-1
+D=M
+@14
+M=D
+@13
+D=M
+@14
+D=D+M
 @15
 M=D
 @15

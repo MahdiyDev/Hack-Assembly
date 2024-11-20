@@ -1,4 +1,4 @@
-push local 3
-pop local 3
-push constant 4
+push constant 7
+push constant 8
+add
 add

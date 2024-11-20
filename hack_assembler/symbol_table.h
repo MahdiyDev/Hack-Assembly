@@ -1,135 +1,94 @@
 #pragma once
 
-#ifndef SYMBOL_SIZE
-	#define SYMBOL_SIZE 500
-#endif // SYMBOL_SIZE
-#ifndef PREDEFINED_SYMBOL_COUNT
-	#define PREDEFINED_SYMBOL_COUNT 16
-#endif // PREDEFINED_SYMBOL_COUNT
+#ifdef STRING_IMPLEMENTATION
+    #define STRING_IMPLEMENTATION
+#endif // STRING_IMPLEMENTATION
+#include "../dynamic_array/string.h"
 
-typedef struct symbol_table symbol_table;
-struct symbol_table {
-	char symbol[SYMBOL_SIZE];
-	int value;
-	symbol_table *next;
-};
+typedef struct {
+    string_view symbol;
+    size_t value;
+} symbol_table_item;
 
-symbol_table* init_symbol_table();
-symbol_table* create_symbol(char* symbol, int value);
-symbol_table* insert_to_table(symbol_table* table, char* symbol, int value);
-int find_symbol(symbol_table* entry, char* symbol);
-void destroy_table(symbol_table* entry);
+typedef struct {
+    symbol_table_item* items;
+    size_t capacity;
+    size_t count;
+
+    int next_address;
+} symbol_table;
+
+symbol_table* st_init();
+void st_destroy(symbol_table* st);
+
+symbol_table_item* st_find(symbol_table* st, string_view symbol);
+symbol_table_item* st_put(symbol_table* st, string_view symbol, int value);
+symbol_table_item* st_get(symbol_table* st, string_view symbol);
+
+void st_put_label(symbol_table* st, string_view symbol, int address);
+int st_put_variable(symbol_table* st, string_view symbol);
 
 #ifdef SYMBOL_TABLE_IMPLEMENTATION
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <stddef.h>
 
-symbol_table* create_symbol(char* symbol, int value)
+symbol_table* st_init()
 {
-    symbol_table* entry = (symbol_table*)malloc(sizeof(symbol_table));
-    size_t symbol_len = strlen(symbol);
-    
-    if (entry == NULL) {
-		fprintf(stderr, "cannot alocate memory!\n");
-        return NULL;
-    }
-    
-    if (!symbol || symbol_len > SYMBOL_SIZE) {
-		fprintf(stderr, "symbol is empty or exceeds over %d character limit\n", SYMBOL_SIZE);
-		return NULL;
-	}
+    symbol_table* st;
+    da_init(st);
 
-    strncpy(entry->symbol, symbol, symbol_len);
-	entry->symbol[symbol_len] = '\0';
-	entry->value = value;
-	entry->next = NULL;
-    
-    return entry;
-}
+    // default variables
+    st_put(st, sv_from_cstr("SP"), 0);
+    st_put(st, sv_from_cstr("LCL"), 1);
+    st_put(st, sv_from_cstr("ARG"), 2);
+    st_put(st, sv_from_cstr("THIS"), 3);
+    st_put(st, sv_from_cstr("THAT"), 4);
+    st_put(st, sv_from_cstr("SCREEN"), 16384);
+    st_put(st, sv_from_cstr("KBD"), 24576);
 
-void destroy_table(symbol_table* entry)
-{
-	if (!entry) {
-		return;
-	}
-	symbol_table* next = entry->next;
-	free(entry);
-	destroy_table(next);
-}
-
-symbol_table* init_symbol_table()
-{
-    symbol_table* table = create_symbol("R0", 0);
-
-    int n;
-    char sym[7];
-    int registers_count = 16;
-
-    symbol_table* currnet_entry = table;
-    for (int i = 1; i < registers_count; i++) {
-        if (i < 10 ) {
-			n = 3; //'Rx' + '\0'
-		} else {
-			n = 4; //'Rxx' + '\0'
-		}
-
-        snprintf(sym, n, "R%d", i);
-		if (!(currnet_entry->next = create_symbol(sym, i)) ) {
-			destroy_table(table);
-			return NULL;
-		}
-		currnet_entry = currnet_entry->next;
+    for (int i = 0; i < 16; i++) {
+        st_put(st, sv_from_cstr(sb_sprintf("R%d", i)), i);
     }
 
-    return table;
+    st->next_address = 16;
+
+    return st;
 }
 
-symbol_table* insert_to_table(symbol_table* table, char* symbol, int value)
+void st_destroy(symbol_table* st)
 {
-	int i = 0;
-    static int symbol_count = 0;
-
-	if (!table) {
-		fprintf(stderr, "table cannot be NULL\n");
-		return NULL;
-	}
-
-	while (table->next) {
-		table = table->next;
-		i++;
-	}
-
-	if (i < PREDEFINED_SYMBOL_COUNT - 1) {
-		fprintf(stderr, "Table is missing pre-defined symbols\n");
-		goto terminate;
-	}
-
-	//if address needs to be dynamically allocated
-	if (value < 0) {
-		value = 16 + symbol_count;
-		symbol_count++;
-	}
-
-	if (!(table->next = create_symbol(symbol, value))) {
-		goto terminate;
-	}
-	return table;
-
-terminate:
-	destroy_table(table);
-	return NULL;	
+    da_free(st);
 }
 
-int find_symbol(symbol_table* entry, char* symbol)
+symbol_table_item* st_put(symbol_table* st, string_view symbol, int value)
 {
-	while (entry) {
-		if (strncmp(entry->symbol, symbol, strlen(symbol)) == 0) {
-			return entry->value;
-		}
-		entry = entry->next;
-	}
-	return -1;
+    symbol_table_item* found_table = st_find(st, symbol);
+    if (found_table == NULL) {
+        symbol_table_item new_item = { .symbol = symbol };
+        found_table = &new_item;
+        found_table->value = value;
+        da_append(st, *found_table);
+    }
+    found_table->value = value;
+    return found_table;
 }
 
+void st_put_label(symbol_table* st, string_view symbol, int address)
+{
+    st_put(st, symbol, address);
+}
+
+int st_put_variable(symbol_table* st, string_view symbol)
+{
+    st_put(st, symbol, st->next_address);
+    st->next_address += 1;
+    return st->next_address - 1;
+}
+
+symbol_table_item* st_find(symbol_table* st, string_view symbol)
+{
+    for (int i = 0 ; i < st->count; i++) {
+        if (sv_equal(st->items[i].symbol, symbol)) return &st->items[i];
+    }
+    return NULL;
+}
 #endif // SYMBOL_TABLE_IMPLEMENTATION
