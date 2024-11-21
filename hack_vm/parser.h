@@ -109,8 +109,8 @@ string_view parse(parser p)
         }
 
         if (instr.count > 1) {
-            sb_add_str(p.out, sb_sprintf("// %.*s\n", command.count, command.data));
-            sb_add_str(p.out, sb_sprintf("%.*s", instr.count, instr.data));
+            sb_add_str(p.out, sb_sprintf(p.out, "// %.*s\n", command.count, command.data));
+            sb_add_str(p.out, sb_sprintf(p.out, "%.*s", instr.count, instr.data));
         };
 
         command = sv_split_cstr(&lines, "\r\n");

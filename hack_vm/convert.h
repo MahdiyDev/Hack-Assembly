@@ -93,7 +93,7 @@ string_view map_get(const sybmol_map* map, int count, string_view key) {
 
 #define map_get_carr(map, key) map_get(map, arr_count(map), key)
 
-string_view get_base_address_index(string_view segment, string_view index) {
+string_view get_base_address_index(string_builder* sb, string_view segment, string_view index) {
     const char* segments[] = { "static", "temp", "internal" };
 
     if (sv_equal_cstr(segment, "constant")) {
@@ -106,28 +106,24 @@ string_view get_base_address_index(string_view segment, string_view index) {
         string_view value = map_get_carr(segment_symbol, segment);
 
         if (!isdigit(value.data[0])) return sv_from_cstr("");
-        string_builder* sb = sb_init(NULL);
 
         long sum = strtol(value.data, NULL, 10) + strtol(index.data, NULL, 10);
-        
-        sb_add_str(sb, sb_sprintf("%ld", sum));
-
-        return sb_to_sv(sb);
+        return sv_from_cstr(sb_sprintf(sb, "%ld", sum));
     } else {
         return map_get_carr(segment_symbol, segment);
     }
 }
 
-string_view get_base_address(string_view segment) { return get_base_address_index(segment, sv_from_cstr("0")); }
+string_view get_base_address(string_builder* sb, string_view segment) { return get_base_address_index(sb, segment, sv_from_cstr("0")); }
 
-char* get_addressf(string_view segment, string_view index, const char* filename) {
+char* get_addressf(string_builder* sb, string_view segment, string_view index, const char* filename) {
     char* address = NULL;
 
     if (!sv_equal_cstr(segment, "static")) {
-        string_view base_address = get_base_address_index(segment, index);
-        address = sb_sprintf("@%.*s\n", base_address.count, base_address.data);
+        string_view base_address = get_base_address_index(sb, segment, index);
+        address = sb_sprintf(sb, "@%.*s\n", base_address.count, base_address.data);
     } else {
-        address = sb_sprintf("@%s.%.*s\n", filename, index.count, index.data);
+        address = sb_sprintf(sb, "@%s.%.*s\n", filename, index.count, index.data);
     }
 
     return address;
@@ -137,7 +133,7 @@ string_view push(string_view segment, string_view index, const char* filename) {
     const char* segments[] = { "pointer", "static", "temp", "internal" };
 
     string_view segment_type;
-    string_builder* sb = sb_init(NULL);
+    string_builder* sb = sb_init("");
 
     if (sv_equal_cstr(segment, "constant")) {
         sb_add_str(sb, "D=A\n");
@@ -149,16 +145,16 @@ string_view push(string_view segment, string_view index, const char* filename) {
         segment_type = segment;
     } else { 
         sb_add_str(sb, "D=M\n");
-        sb_add_str(sb, sb_sprintf("@%.*s\n", index.count, index.data));
+        sb_add_str(sb, sb_sprintf(sb, "@%.*s\n", index.count, index.data));
         sb_add_str(sb, "A=D+A\n");
         sb_add_str(sb, "D=M\n");
 
         segment_type = segment;
     }
 
-    char* address = get_addressf(segment, index, filename);
+    char* address = get_addressf(sb, segment, index, filename);
 
-    string_builder* sb_result = sb_init(NULL);
+    string_builder* sb_result = sb_init("");
 
     sb_add_str(sb_result, address);
     sb_add_str(sb_result, sb_to_sv(sb).data);
@@ -175,9 +171,9 @@ string_view push(string_view segment, string_view index, const char* filename) {
 string_view pop(string_view segment, string_view index, const char* filename) {
     const char* segments[] = { "pointer", "static", "temp", "internal" };
 
-    string_builder* sb = sb_init(NULL);
+    string_builder* sb = sb_init("");
 
-    char* address = get_addressf(segment, index, filename);
+    char* address = get_addressf(sb, segment, index, filename);
 
     if (sv_equal_cstr(segment, "constant")) {
         fprintf(stderr, "Invalid pop into constant.\n");
@@ -193,9 +189,9 @@ string_view pop(string_view segment, string_view index, const char* filename) {
 
         return sb_to_sv(sb);
     } else {
-        sb_add_str(sb, sb_sprintf("@%s\n", get_base_address(segment).data));
+        sb_add_str(sb, sb_sprintf(sb, "@%s\n", get_base_address(sb, segment).data));
         sb_add_str(sb, "D=M\n");
-        sb_add_str(sb, sb_sprintf("@%.*s\n", index.count, index.data));
+        sb_add_str(sb, sb_sprintf(sb, "@%.*s\n", index.count, index.data));
         sb_add_str(sb, "D=D+A\n");
         sb_add_str(sb, "@15\n");
         sb_add_str(sb, "M=D\n");
@@ -222,7 +218,7 @@ string_view arithmetic(string_view operation, int counter) {
 
     if (sv_in_carr(operation, neg_not)) {
         sb_add_str(sb, "@13\n");
-        sb_add_str(sb, sb_sprintf("D=%sM\n", op.data));
+        sb_add_str(sb, sb_sprintf(sb, "D=%sM\n", op.data));
         sb_add_str(sb, "@15\n");
         sb_add_str(sb, "M=D\n");
     } else {
@@ -232,7 +228,7 @@ string_view arithmetic(string_view operation, int counter) {
             sb_add_str(sb, "@13\n");
             sb_add_str(sb, "D=M\n");
             sb_add_str(sb, "@14\n");
-            sb_add_str(sb, sb_sprintf("D=D%sM\n", op.data));
+            sb_add_str(sb, sb_sprintf(sb, "D=D%sM\n", op.data));
             sb_add_str(sb, "@15\n");
             sb_add_str(sb, "M=D\n");
         } else {
@@ -240,14 +236,14 @@ string_view arithmetic(string_view operation, int counter) {
             sb_add_str(sb, "D=M\n");
             sb_add_str(sb, "@14\n");
             sb_add_str(sb, "D=M-D\n");
-            sb_add_str(sb, sb_sprintf("@false%d\n", counter));
-            sb_add_str(sb, sb_sprintf("D;%s", op.data));
+            sb_add_str(sb, sb_sprintf(sb, "@false%d\n", counter));
+            sb_add_str(sb, sb_sprintf(sb, "D;%s", op.data));
             sb_add_str(sb, "D=-1\n");
-            sb_add_str(sb, sb_sprintf("@set%d\n", counter));
+            sb_add_str(sb, sb_sprintf(sb, "@set%d\n", counter));
             sb_add_str(sb, "0;JMP\n");
-            sb_add_str(sb, sb_sprintf("(false%d)\n", counter));
+            sb_add_str(sb, sb_sprintf(sb, "(false%d)\n", counter));
             sb_add_str(sb, "D=0\n");
-            sb_add_str(sb, sb_sprintf("(set%d)\n", counter));
+            sb_add_str(sb, sb_sprintf(sb, "(set%d)\n", counter));
             sb_add_str(sb, "@15\n");
             sb_add_str(sb, "M=D\n");
         }

@@ -18,7 +18,7 @@ typedef struct {
     int next_address;
 } symbol_table;
 
-symbol_table* st_init();
+symbol_table* st_init(string_builder* sb);
 void st_destroy(symbol_table* st);
 
 symbol_table_item* st_find(symbol_table* st, string_view symbol);
@@ -31,7 +31,7 @@ int st_put_variable(symbol_table* st, string_view symbol);
 #ifdef SYMBOL_TABLE_IMPLEMENTATION
 #include <stddef.h>
 
-symbol_table* st_init()
+symbol_table* st_init(string_builder* sb)
 {
     symbol_table* st;
     da_init(st);
@@ -46,7 +46,7 @@ symbol_table* st_init()
     st_put(st, sv_from_cstr("KBD"), 24576);
 
     for (int i = 0; i < 16; i++) {
-        st_put(st, sv_from_cstr(sb_sprintf("R%d", i)), i);
+        st_put(st, sv_from_cstr(sb_sprintf(sb, "R%d", i)), i);
     }
 
     st->next_address = 16;

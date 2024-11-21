@@ -29,7 +29,7 @@ int main(int argc, char** argv)
 
     string_view parsed_data = parse(p);
 
-    char* file_out = sb_sprintf("%s.%s", filename, "asm");
+    char* file_out = sb_sprintf(data, "%s.%s", filename, "asm");
     FILE* fp = fopen(file_out, "w");
 
     // Default values

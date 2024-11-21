@@ -169,7 +169,7 @@ parser parser_init(const char* filename, string_builder *data)
 
     p.filename = filename;
     p.data = data;
-    p.st = st_init();
+    p.st = st_init(data);
 
     string_view lines = sb_to_sv(p.data);
 

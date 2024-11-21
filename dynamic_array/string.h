@@ -4,10 +4,11 @@
 #include <ctype.h>
 #include <stdbool.h>
 
-typedef struct {
+typedef struct string_builder {
     char* items;
     size_t capacity;
     size_t count;
+	struct string_builder* temp;
 } string_builder;
 
 typedef struct {
@@ -59,7 +60,7 @@ void sb_add_first_c(string_builder* sb, const char c);
 void sb_delete_c(string_builder* sb, int index);
 
 void sb_clear(string_builder* sb);
-char* sb_sprintf(const char *format, ...);
+char* sb_sprintf(string_builder* sb, const char *format, ...);
 
 #ifdef STRING_IMPLEMENTATION
 #include <stdarg.h>
@@ -268,10 +269,17 @@ string_builder* sb_init(const char* src)
 {
     string_builder* sb;
     da_init(sb);
+	da_init(sb->temp);
     if (src != NULL) {
         sb_add_str(sb, src);
     }
     return sb;
+}
+
+void sb_free(string_builder* sb)
+{
+	da_free(sb->temp);
+    da_free(sb);
 }
 
 void sb_add(string_builder* sb, string_view sv)
@@ -314,12 +322,7 @@ void sb_delete_c(string_builder* sb, int index)
     da_delete(sb, index);
 }
 
-void sb_free(string_builder* sb)
-{
-    da_free(sb);
-}
-
-char* sb_sprintf(const char *format, ...)
+char* sb_sprintf(string_builder* sb, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -333,6 +336,8 @@ char* sb_sprintf(const char *format, ...)
     va_start(args, format);
     vsnprintf(temp, n + 1, format, args);
     va_end(args);
+
+	sb_add_str(sb->temp, temp);
 
     return temp;
 }
