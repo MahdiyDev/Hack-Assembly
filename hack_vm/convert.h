@@ -140,7 +140,7 @@ string_view push(string_view segment, string_view index, const char* filename) {
 
         segment_type = sv_from_cstr("constant");
     } else if (sv_in_carr(segment, segments)) {
-        sb_add_str(sb, "D=A\n");
+        sb_add_str(sb, "D=M\n");
 
         segment_type = segment;
     } else { 
