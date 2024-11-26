@@ -101,13 +101,8 @@ bool read_file(const char* file_path, string_builder* sb)
 
 char* decimal_to_bin(int n, unsigned int bus_size)
 {
-	char* bin;
+	static char bin[64];
 	int i = 0, b;
-
-	if (!(bin = (char*)malloc(sizeof(char) * bus_size))) {
-		fprintf(stderr, "cannot alocate memory!\n");
-		return NULL;
-	}
 
 	for (b = bus_size - 1; b >= 0; b--) {
 	    int bit = n >> b;

@@ -16,6 +16,7 @@
 typedef struct {
     const char* filename;
     string_builder* data;
+    string_builder* out;
     symbol_table* st;
     bool is_hex;
 } parser;
@@ -105,7 +106,6 @@ string_view parse_jump(string_view command)
 string_view parse(parser p)
 {
     int counter = 0;
-    string_builder* out = sb_init("");
 
     string_view lines = sb_to_sv(p.data);
 
@@ -126,11 +126,11 @@ string_view parse(parser p)
             string_view symbol = parse_symbol(p, command);
 
             if (p.is_hex) {
-                sb_add_str(out, bin_to_hex(decimal_to_bin(sv_to_digit(symbol), 16), 16));
-                sb_add_str(out, " ");
+                sb_add_cstr(p.out, bin_to_hex(decimal_to_bin(sv_to_digit(symbol), 16), 16));
+                sb_add_cstr(p.out, " ");
             } else {
-                sb_add_str(out, decimal_to_bin(sv_to_digit(symbol), 16));
-                sb_add_str(out, "\n");
+                sb_add_cstr(p.out, decimal_to_bin(sv_to_digit(symbol), 16));
+                sb_add_cstr(p.out, "\n");
             }
         } else if (type == C_COMMAND) {
             string_view dest = parse_dest(command);
@@ -138,20 +138,20 @@ string_view parse(parser p)
             string_view jump = parse_jump(command);
 
             if (p.is_hex) {
-                string_builder* sb = sb_init("");
-                sb_add_str(sb, "111");
-                sb_add_str(sb, comp_str2bin(comp));
-                sb_add_str(sb, dest_str2bin(dest));
-                sb_add_str(sb, jump_str2bin(jump));
-                sb_add_str(out, bin_to_hex(sb_to_sv(sb).data, 16));
-                sb_add_str(out, " ");
+                string_builder* sb = sb_init(NULL);
+                sb_add_cstr(sb, "111");
+                sb_add_cstr(sb, comp_str2bin(comp));
+                sb_add_cstr(sb, dest_str2bin(dest));
+                sb_add_cstr(sb, jump_str2bin(jump));
+                sb_add_cstr(p.out, bin_to_hex(sb_to_sv(sb).data, 16));
+                sb_add_cstr(p.out, " ");
                 sb_free(sb);
             } else {
-                sb_add_str(out, "111");
-                sb_add_str(out, comp_str2bin(comp));
-                sb_add_str(out, dest_str2bin(dest));
-                sb_add_str(out, jump_str2bin(jump));
-                sb_add_str(out, "\n");
+                sb_add_cstr(p.out, "111");
+                sb_add_cstr(p.out, comp_str2bin(comp));
+                sb_add_cstr(p.out, dest_str2bin(dest));
+                sb_add_cstr(p.out, jump_str2bin(jump));
+                sb_add_cstr(p.out, "\n");
             }
         } else if (type == UNKNOWN_COMMAND) {
             fprintf(stderr, "%s:%d: Unknown command: %.*s\n", p.filename, counter, (int)command.count, command.data);
@@ -160,7 +160,7 @@ string_view parse(parser p)
         command = sv_split_cstr(&lines, "\r\n");
     }
 
-    return sb_to_sv(out);
+    return sb_to_sv(p.out);
 }
 
 parser parser_init(const char* filename, string_builder *data)
@@ -169,7 +169,8 @@ parser parser_init(const char* filename, string_builder *data)
 
     p.filename = filename;
     p.data = data;
-    p.st = st_init(data);
+    p.out = sb_init(NULL);
+    p.st = st_init();
 
     string_view lines = sb_to_sv(p.data);
 
@@ -203,6 +204,7 @@ parser parser_init(const char* filename, string_builder *data)
 void parser_destroy(parser p)
 {
     st_destroy(p.st);
+    sb_free(p.out);
     sb_free(p.data);
 }
 #endif // HACK_ASM_PARSER_IMPLEMENTATION

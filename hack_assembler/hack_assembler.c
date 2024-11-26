@@ -29,13 +29,17 @@ int main(int argc, char** argv)
 
     string_view parsed_data = parse(p);
 
-    char* file_out = sb_sprintf(data, "%s.%s", filename, "hack");
-    FILE* fp = fopen(file_out, "w");
+    string_builder* file_out = sb_init(filename);
+    sb_add_cstr(file_out, ".hack");
+
+    FILE* fp = fopen(sb_to_sv(file_out).data, "w");
+
+    free(filename);
+    sb_free(file_out);
 
     fprintf(fp, "%s", parsed_data.data);
 
     fclose(fp);
-    free(file_out);
 
     parser_destroy(p);
     return 0;

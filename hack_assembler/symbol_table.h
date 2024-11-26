@@ -18,7 +18,7 @@ typedef struct {
     int next_address;
 } symbol_table;
 
-symbol_table* st_init(string_builder* sb);
+symbol_table* st_init();
 void st_destroy(symbol_table* st);
 
 symbol_table_item* st_find(symbol_table* st, string_view symbol);
@@ -31,7 +31,7 @@ int st_put_variable(symbol_table* st, string_view symbol);
 #ifdef SYMBOL_TABLE_IMPLEMENTATION
 #include <stddef.h>
 
-symbol_table* st_init(string_builder* sb)
+symbol_table* st_init()
 {
     symbol_table* st;
     da_init(st);
@@ -46,7 +46,10 @@ symbol_table* st_init(string_builder* sb)
     st_put(st, sv_from_cstr("KBD"), 24576);
 
     for (int i = 0; i < 16; i++) {
-        st_put(st, sv_from_cstr(sb_sprintf(sb, "R%d", i)), i);
+        string_builder* sb = sb_init(NULL);
+        sb_add_f(sb, "R%d", i);
+        st_put(st, sb_to_sv(sb), i);
+        sb_free(sb);
     }
 
     st->next_address = 16;
@@ -63,10 +66,9 @@ symbol_table_item* st_put(symbol_table* st, string_view symbol, int value)
 {
     symbol_table_item* found_table = st_find(st, symbol);
     if (found_table == NULL) {
-        symbol_table_item new_item = { .symbol = symbol };
-        found_table = &new_item;
-        found_table->value = value;
-        da_append(st, *found_table);
+        symbol_table_item new_item = { .symbol = symbol, .value = (size_t)value };
+        da_append(st, new_item);
+        return st_find(st, symbol);
     }
     found_table->value = value;
     return found_table;

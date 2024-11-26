@@ -39,9 +39,9 @@ int main()
 #endif
 #include "../dynamic_array/string.h"
 
-string_view push(string_view segment, string_view index, const char* filename);
-string_view pop(string_view segment, string_view index, const char* filename);
-string_view arithmetic(string_view operation, int counter);
+string_builder* push(string_view segment, string_view index, const char* filename);
+string_builder* pop(string_view segment, string_view index, const char* filename);
+string_builder* arithmetic(string_view operation, int counter);
 void set_default(FILE* fp, const char* address, const char* value);
 
 #ifdef CONVERT_IMPLEMENTATION
@@ -93,7 +93,7 @@ string_view map_get(const sybmol_map* map, int count, string_view key) {
 
 #define map_get_carr(map, key) map_get(map, arr_count(map), key)
 
-string_view get_base_address_index(string_builder* sb, string_view segment, string_view index) {
+string_view get_base_address_index(string_builder* address_sb, string_view segment, string_view index) {
     const char* segments[] = { "static", "temp", "internal" };
 
     if (sv_equal_cstr(segment, "constant")) {
@@ -108,149 +108,157 @@ string_view get_base_address_index(string_builder* sb, string_view segment, stri
         if (!isdigit(value.data[0])) return sv_from_cstr("");
 
         long sum = strtol(value.data, NULL, 10) + strtol(index.data, NULL, 10);
-        return sv_from_cstr(sb_sprintf(sb, "%ld", sum));
+        sb_add_f(address_sb, "%ld", sum);
+        return sb_to_sv(address_sb);
     } else {
         return map_get_carr(segment_symbol, segment);
     }
 }
 
-string_view get_base_address(string_builder* sb, string_view segment) { return get_base_address_index(sb, segment, sv_from_cstr("0")); }
-
-char* get_addressf(string_builder* sb, string_view segment, string_view index, const char* filename) {
-    char* address = NULL;
-
-    if (!sv_equal_cstr(segment, "static")) {
-        string_view base_address = get_base_address_index(sb, segment, index);
-        address = sb_sprintf(sb, "@%.*s\n", base_address.count, base_address.data);
-    } else {
-        address = sb_sprintf(sb, "@%s.%.*s\n", filename, index.count, index.data);
-    }
-
-    return address;
+string_view get_base_address(string_builder* address_sb, string_view segment) { 
+    return get_base_address_index(address_sb, segment, sv_from_cstr("0"));
 }
 
-string_view push(string_view segment, string_view index, const char* filename) {
+void add_address(string_builder* sb, string_view segment, string_view index, const char* filename) {
+    if (!sv_equal_cstr(segment, "static")) {
+        string_builder* address_sb = sb_init(NULL);
+        string_view base_address = get_base_address_index(address_sb, segment, index);
+        sb_add_f(sb, "@%.*s\n", base_address.count, base_address.data);
+        sb_free(address_sb);
+    } else {
+        sb_add_f(sb, "@%s.%.*s\n", filename, index.count, index.data);
+    }
+}
+
+string_builder* push(string_view segment, string_view index, const char* filename) {
     const char* segments[] = { "pointer", "static", "temp", "internal" };
 
     string_view segment_type;
     string_builder* sb = sb_init("");
 
     if (sv_equal_cstr(segment, "constant")) {
-        sb_add_str(sb, "D=A\n");
+        sb_add_cstr(sb, "D=A\n");
 
         segment_type = sv_from_cstr("constant");
     } else if (sv_in_carr(segment, segments)) {
-        sb_add_str(sb, "D=M\n");
+        sb_add_cstr(sb, "D=M\n");
 
         segment_type = segment;
     } else { 
-        sb_add_str(sb, "D=M\n");
-        sb_add_str(sb, sb_sprintf(sb, "@%.*s\n", index.count, index.data));
-        sb_add_str(sb, "A=D+A\n");
-        sb_add_str(sb, "D=M\n");
+        sb_add_cstr(sb, "D=M\n");
+        sb_add_f(sb, "@%.*s\n", index.count, index.data);
+        sb_add_cstr(sb, "A=D+A\n");
+        sb_add_cstr(sb, "D=M\n");
 
         segment_type = segment;
     }
 
-    char* address = get_addressf(sb, segment, index, filename);
-
     string_builder* sb_result = sb_init("");
 
-    sb_add_str(sb_result, address);
-    sb_add_str(sb_result, sb_to_sv(sb).data);
-    sb_add_str(sb_result, "@SP\n");
-    sb_add_str(sb_result, "M=M+1\n");
-    sb_add_str(sb_result, "A=M-1\n");
-    sb_add_str(sb_result, "M=D\n");
+    add_address(sb_result, segment, index, filename);
+    sb_add_cstr(sb_result, sb_to_sv(sb).data);
+    sb_add_cstr(sb_result, "@SP\n");
+    sb_add_cstr(sb_result, "M=M+1\n");
+    sb_add_cstr(sb_result, "A=M-1\n");
+    sb_add_cstr(sb_result, "M=D\n");
 
     sb_free(sb);
 
-    return sb_to_sv(sb_result);
+    return sb_result;
 }
 
-string_view pop(string_view segment, string_view index, const char* filename) {
+string_builder* pop(string_view segment, string_view index, const char* filename) {
     const char* segments[] = { "pointer", "static", "temp", "internal" };
 
     string_builder* sb = sb_init("");
 
-    char* address = get_addressf(sb, segment, index, filename);
 
     if (sv_equal_cstr(segment, "constant")) {
         fprintf(stderr, "Invalid pop into constant.\n");
         sb_free(sb);
         exit(EXIT_FAILURE);
     } else if (sv_in_carr(segment, segments)) {
-        sb_add_str(sb, "@SP\n");
-        sb_add_str(sb, "AM=M-1\n");
-        sb_add_str(sb, "D=M\n");
-        sb_add_str(sb, address);
-        sb_add_str(sb, "M=D\n");
+        sb_add_cstr(sb, "@SP\n");
+        sb_add_cstr(sb, "AM=M-1\n");
+        sb_add_cstr(sb, "D=M\n");
+        add_address(sb, segment, index, filename);
+        sb_add_cstr(sb, "M=D\n");
         
 
-        return sb_to_sv(sb);
+        return sb;
     } else {
-        sb_add_str(sb, sb_sprintf(sb, "@%s\n", get_base_address(sb, segment).data));
-        sb_add_str(sb, "D=M\n");
-        sb_add_str(sb, sb_sprintf(sb, "@%.*s\n", index.count, index.data));
-        sb_add_str(sb, "D=D+A\n");
-        sb_add_str(sb, "@15\n");
-        sb_add_str(sb, "M=D\n");
-        sb_add_str(sb, "@SP\n");
-        sb_add_str(sb, "AM=M-1\n");
-        sb_add_str(sb, "D=M\n");
-        sb_add_str(sb, "@15\n");
-        sb_add_str(sb, "A=M\n");
-        sb_add_str(sb, "M=D\n");
+        string_builder* address_sb = sb_init(NULL);
 
-        return sb_to_sv(sb);
+        sb_add_f(sb, "@%s\n", get_base_address(address_sb, segment).data);
+        sb_add_cstr(sb, "D=M\n");
+        sb_add_f(sb, "@%.*s\n", index.count, index.data);
+        sb_add_cstr(sb, "D=D+A\n");
+        sb_add_cstr(sb, "@15\n");
+        sb_add_cstr(sb, "M=D\n");
+        sb_add_cstr(sb, "@SP\n");
+        sb_add_cstr(sb, "AM=M-1\n");
+        sb_add_cstr(sb, "D=M\n");
+        sb_add_cstr(sb, "@15\n");
+        sb_add_cstr(sb, "A=M\n");
+        sb_add_cstr(sb, "M=D\n");
+
+        sb_free(address_sb);
+        return sb;
     }
 }
 
-string_view arithmetic(string_view operation, int counter) {
+string_builder* arithmetic(string_view operation, int counter) {
     const char* neg_not[] = { "neg", "not" };
     const char* arith[] = { "add", "sub", "and", "or" };
 
     string_builder* sb = sb_init("");
+    string_builder* instr = NULL;
 
-    sb_add_str(sb, pop(sv_from_cstr("internal"), sv_from_cstr("0"), "").data);
+    instr = pop(sv_from_cstr("internal"), sv_from_cstr("0"), "");
+    sb_add(sb, sb_to_sv(instr));
+    sb_free(instr);
 
     string_view op = map_get_carr(operation_symbol, operation);
 
     if (sv_in_carr(operation, neg_not)) {
-        sb_add_str(sb, "@13\n");
-        sb_add_str(sb, sb_sprintf(sb, "D=%sM\n", op.data));
-        sb_add_str(sb, "@15\n");
-        sb_add_str(sb, "M=D\n");
+        sb_add_cstr(sb, "@13\n");
+        sb_add_f(sb, "D=%sM\n", op.data);
+        sb_add_cstr(sb, "@15\n");
+        sb_add_cstr(sb, "M=D\n");
     } else {
-        sb_add_str(sb, pop(sv_from_cstr("internal"), sv_from_cstr("1"), "").data);
+        instr = pop(sv_from_cstr("internal"), sv_from_cstr("1"), "");
+        sb_add(sb, sb_to_sv(instr));
+        sb_free(instr);
 
         if (sv_in_carr(operation, arith)) {
-            sb_add_str(sb, "@13\n");
-            sb_add_str(sb, "D=M\n");
-            sb_add_str(sb, "@14\n");
-            sb_add_str(sb, sb_sprintf(sb, "D=D%sM\n", op.data));
-            sb_add_str(sb, "@15\n");
-            sb_add_str(sb, "M=D\n");
+            sb_add_cstr(sb, "@13\n");
+            sb_add_cstr(sb, "D=M\n");
+            sb_add_cstr(sb, "@14\n");
+            sb_add_f(sb, "D=D%sM\n", op.data);
+            sb_add_cstr(sb, "@15\n");
+            sb_add_cstr(sb, "M=D\n");
         } else {
-            sb_add_str(sb, "@13\n");
-            sb_add_str(sb, "D=M\n");
-            sb_add_str(sb, "@14\n");
-            sb_add_str(sb, "D=M-D\n");
-            sb_add_str(sb, sb_sprintf(sb, "@false%d\n", counter));
-            sb_add_str(sb, sb_sprintf(sb, "D;%s", op.data));
-            sb_add_str(sb, "D=-1\n");
-            sb_add_str(sb, sb_sprintf(sb, "@set%d\n", counter));
-            sb_add_str(sb, "0;JMP\n");
-            sb_add_str(sb, sb_sprintf(sb, "(false%d)\n", counter));
-            sb_add_str(sb, "D=0\n");
-            sb_add_str(sb, sb_sprintf(sb, "(set%d)\n", counter));
-            sb_add_str(sb, "@15\n");
-            sb_add_str(sb, "M=D\n");
+            sb_add_cstr(sb, "@13\n");
+            sb_add_cstr(sb, "D=M\n");
+            sb_add_cstr(sb, "@14\n");
+            sb_add_cstr(sb, "D=M-D\n");
+            sb_add_f(sb, "@false%d\n", counter);
+            sb_add_f(sb, "D;%s", op.data);
+            sb_add_cstr(sb, "D=-1\n");
+            sb_add_f(sb, "@set%d\n", counter);
+            sb_add_cstr(sb, "0;JMP\n");
+            sb_add_f(sb, "(false%d)\n", counter);
+            sb_add_cstr(sb, "D=0\n");
+            sb_add_f(sb, "(set%d)\n", counter);
+            sb_add_cstr(sb, "@15\n");
+            sb_add_cstr(sb, "M=D\n");
         }
     }
 
-    sb_add_str(sb, push(sv_from_cstr("internal"), sv_from_cstr("2"), "").data);
-    return sb_to_sv(sb);
+    instr = push(sv_from_cstr("internal"), sv_from_cstr("2"), "");
+    sb_add(sb, sb_to_sv(instr));
+    sb_free(instr);
+    return sb;
 }
 
 void print_instr(string_view instr)

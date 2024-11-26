@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stdlib.h>
 
 #ifndef STRING_IMPLEMENTATION
     #define STRING_IMPLEMENTATION
@@ -81,14 +82,13 @@ string_view command_arg2(string_view command)
 string_view parse(parser p)
 {
     int counter = 0;
-    p.out = sb_init("");
 
     string_view lines = sb_to_sv(p.data);
 
     string_view command = sv_split_cstr(&lines, "\r\n");
 
     while (lines.count > 0) {
-        string_view instr = sv_from_cstr("");
+        string_builder* instr = NULL;
         counter += 1;
 
         if (sv_start_with(command, "//") || command.count < 1) {
@@ -108,10 +108,12 @@ string_view parse(parser p)
             fprintf(stderr, "%s:%d: Unknown command: %.*s\n", p.filename, counter, (int)command.count, command.data);
         }
 
-        if (instr.count > 1) {
-            sb_add_str(p.out, sb_sprintf(p.out, "// %.*s\n", command.count, command.data));
-            sb_add_str(p.out, sb_sprintf(p.out, "%.*s", instr.count, instr.data));
+        if (instr != NULL && instr->count > 1) {
+            sb_add_f(p.out, "// %.*s\n", command.count, command.data);
+            sb_add_f(p.out, "%.*s", instr->count, instr->items);
         };
+        
+        sb_free(instr);
 
         command = sv_split_cstr(&lines, "\r\n");
     }

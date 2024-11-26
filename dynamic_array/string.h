@@ -4,11 +4,10 @@
 #include <ctype.h>
 #include <stdbool.h>
 
-typedef struct string_builder {
+typedef struct {
     char* items;
     size_t capacity;
     size_t count;
-	struct string_builder* temp;
 } string_builder;
 
 typedef struct {
@@ -46,21 +45,22 @@ bool sv_in_cstr(string_view a, const char* cstr);
 bool sv_in_c(string_view a, const char c);
 #define sv_in_carr(sv, arr) sv_in(sv, arr, arr_count(arr))
 
-string_builder* sb_init(const char* src);
+string_builder* sb_init(const char* cstr);
 void sb_free(string_builder* sb);
 
 void sb_add(string_builder* sb, string_view sv);
 
-void sb_add_str(string_builder* sb, const char* src);
-void sb_add_first_str(string_builder* sb, const char* src);
-void sb_delete_range_str(string_builder* sb, int start, int end);
+void sb_add_cstr(string_builder* sb, const char* cstr);
+void sb_add_first_cstr(string_builder* sb, const char* cstr);
+void sb_delete_range_cstr(string_builder* sb, int start, int end);
 
 void sb_add_c(string_builder* sb, const char c);
 void sb_add_first_c(string_builder* sb, const char c);
 void sb_delete_c(string_builder* sb, int index);
 
+void sb_add_f(string_builder* sb, const char *format, ...);
+
 void sb_clear(string_builder* sb);
-char* sb_sprintf(string_builder* sb, const char *format, ...);
 
 #ifdef STRING_IMPLEMENTATION
 #include <stdarg.h>
@@ -265,20 +265,18 @@ string_view sb_to_sv(string_builder* sb)
     return sv_from_parts((sb)->items, (sb)->count);
 }
 
-string_builder* sb_init(const char* src)
+string_builder* sb_init(const char* cstr)
 {
     string_builder* sb;
     da_init(sb);
-	da_init(sb->temp);
-    if (src != NULL) {
-        sb_add_str(sb, src);
+    if (cstr != NULL) {
+        sb_add_cstr(sb, cstr);
     }
     return sb;
 }
 
 void sb_free(string_builder* sb)
 {
-	da_free(sb->temp);
     da_free(sb);
 }
 
@@ -287,17 +285,17 @@ void sb_add(string_builder* sb, string_view sv)
     da_append_many(sb, sv.data, sv.count);
 }
 
-void sb_add_str(string_builder* sb, const char* src)
+void sb_add_cstr(string_builder* sb, const char* cstr)
 {
-    da_append_many(sb, src, strlen(src));
+    da_append_many(sb, cstr, strlen(cstr));
 }
 
-void sb_add_first_str(string_builder* sb, const char* src)
+void sb_add_first_cstr(string_builder* sb, const char* cstr)
 {
-    da_prepend_many(sb, src, strlen(src));
+    da_prepend_many(sb, cstr, strlen(cstr));
 }
 
-void sb_delete_range_str(string_builder* sb, int start_index, int end_index)
+void sb_delete_range_cstr(string_builder* sb, int start_index, int end_index)
 {
     da_delete_range(sb, start_index, end_index);
 }
@@ -322,7 +320,7 @@ void sb_delete_c(string_builder* sb, int index)
     da_delete(sb, index);
 }
 
-char* sb_sprintf(string_builder* sb, const char *format, ...)
+void sb_add_f(string_builder* sb, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -337,9 +335,8 @@ char* sb_sprintf(string_builder* sb, const char *format, ...)
     vsnprintf(temp, n + 1, format, args);
     va_end(args);
 
-	sb_add_str(sb->temp, temp);
-
-    return temp;
+	sb_add_cstr(sb, temp);
+	free(temp);
 }
 
 #endif // STRING_IMPLEMENTATION
