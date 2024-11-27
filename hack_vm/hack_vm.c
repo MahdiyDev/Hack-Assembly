@@ -31,6 +31,7 @@ int main(int argc, char** argv)
 
     string_builder* file_out = sb_init(filename);
     sb_add_cstr(file_out, ".asm");
+    sb_add_c(file_out, '\0');
 
     FILE* fp = fopen(sb_to_sv(file_out).data, "w");
 

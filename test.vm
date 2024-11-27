@@ -4,5 +4,8 @@ push constant 8
 add
 add
 pop local 0
+call math 0
 push constant 8
-
+function math 2
+return
+add

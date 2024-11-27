@@ -109,25 +109,29 @@ string_view parse(parser p)
 
     string_view lines = sb_to_sv(p.data);
 
-    string_view command = sv_split_cstr(&lines, "\r\n");
+    string_view command;
 
     while (lines.count > 0) {
         string_view instr = sv_from_cstr("");
         counter += 1;
 
+        command = sv_split_cstr(&lines, "\r\n");
+        command = sv_trim_left(command);
+
         if (sv_start_with(command, "//") || command.count < 1) {
-            command = sv_split_cstr(&lines, "\r\n");
             continue;
         };
 
         command_type type = parse_command_type(command);
+        char* hex;
 
         if (type == A_COMMAND) {
             string_view symbol = parse_symbol(p, command);
 
             if (p.is_hex) {
-                sb_add_cstr(p.out, bin_to_hex(decimal_to_bin(sv_to_digit(symbol), 16), 16));
+                sb_add_cstr(p.out, (hex = bin_to_hex(decimal_to_bin(sv_to_digit(symbol), 16), 16)));
                 sb_add_cstr(p.out, " ");
+                free(hex);
             } else {
                 sb_add_cstr(p.out, decimal_to_bin(sv_to_digit(symbol), 16));
                 sb_add_cstr(p.out, "\n");
@@ -143,8 +147,9 @@ string_view parse(parser p)
                 sb_add_cstr(sb, comp_str2bin(comp));
                 sb_add_cstr(sb, dest_str2bin(dest));
                 sb_add_cstr(sb, jump_str2bin(jump));
-                sb_add_cstr(p.out, bin_to_hex(sb_to_sv(sb).data, 16));
+                sb_add_cstr(p.out, (hex = bin_to_hex(sb_to_sv(sb).data, 16)));
                 sb_add_cstr(p.out, " ");
+                free(hex);
                 sb_free(sb);
             } else {
                 sb_add_cstr(p.out, "111");
@@ -156,8 +161,6 @@ string_view parse(parser p)
         } else if (type == UNKNOWN_COMMAND) {
             fprintf(stderr, "%s:%d: Unknown command: %.*s\n", p.filename, counter, (int)command.count, command.data);
         }
-
-        command = sv_split_cstr(&lines, "\r\n");
     }
 
     return sb_to_sv(p.out);

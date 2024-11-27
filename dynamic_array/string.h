@@ -166,18 +166,16 @@ bool sv_end_with(string_view sv, const char *cstr)
 
 bool sv_isnumeric(string_view sv)
 {
-	if (!isdigit(sv.data[0])) return false;
-	for (int i = 0; i < sv.count; i++) {
-		if (isdigit(sv.data[i])) return true;
-	}
-	return false;
+	return isdigit(sv.data[0]) != 0;
 }
 
 size_t sv_to_digit(string_view sv)
 {
 	size_t value = 0;
+	int n;
 	for (int i = 0; i < sv.count; i++) {
-		int n = sv.data[i] - '0';
+		if (isdigit(sv.data[i]) == 0) break;
+		n = sv.data[i] - '0';
 		if (n > 9) return value;
 		if (i == 0) {
 			value = value + n;
@@ -261,7 +259,6 @@ bool sv_in_c(string_view a, const char c)
 
 string_view sb_to_sv(string_builder* sb)
 {
-    sb_add_c(sb, '\0');
     return sv_from_parts((sb)->items, (sb)->count);
 }
 

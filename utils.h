@@ -121,14 +121,17 @@ char* decimal_to_bin(int n, unsigned int bus_size)
 
 char* bin_to_hex(const char* bin, unsigned int bus_size)
 {
-    char* buffer = (char*)malloc(sizeof(char)*bus_size);
+    char* buffer = (char*)malloc(sizeof(char)*5);
     int num = 0;
-    do {
-        int b = *bin=='1'?1:0;
-        num = (num<<1)|b;
-        bin++;
-    } while (*bin);
-    snprintf(buffer, bus_size, "%.4X", num);
+
+    for (int i = 0; i < bus_size; i++) {
+        int b = bin[i] == '1' ? 1 : 0;
+        num = (num << 1) | b;
+    }
+
+    snprintf(buffer, 5, "%.4X", num);
+    buffer[4] = '\0';
+
     return buffer;
 }
 

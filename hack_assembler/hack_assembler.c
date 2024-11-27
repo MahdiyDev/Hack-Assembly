@@ -22,15 +22,21 @@ int main(int argc, char** argv)
         if (filename != NULL) free(filename);
         return 1;
     }
+
     string_builder* data = sb_init("");
     read_file(file_path, data);
 
     parser p = parser_init(filename, data);
 
+    if (argc > 2 && strcmp(argv[2], "--hex") == 0) {
+        p.is_hex = true;
+    }
+
     string_view parsed_data = parse(p);
 
     string_builder* file_out = sb_init(filename);
     sb_add_cstr(file_out, ".hack");
+    sb_add_c(file_out, '\0');
 
     FILE* fp = fopen(sb_to_sv(file_out).data, "w");
 
