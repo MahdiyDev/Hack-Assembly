@@ -57,17 +57,68 @@ Labels are used to structure code and facilitate operations like loops. For inst
 
 #lowlevel #asm
 
-VM (virtual machine)
+Virtual Machine (VM)  
 
-Java dasturlash tilidan virtual machine atamasini eshitgan bo'lsangiz kerak. Biz shuni soddaroq versiyasini yasaymiz.
-Virtual machine - o'z syntax tiliga ega bo'lgan, stack va function'larni boshqarish imkoniyatini beruvchi tushuncha.
+Virtual Machine (VM) nima?
 
-Virtual machine nega kerak?
-Hozirgi zamonda ko'p ishlatiladigan 3 xil CPU turi mavjud (X86, X64 va ARM). Har bir CPU o'z instruction'lariga ega. High level dasturlash tilidan bu instruction'larga o'tkazib chiqish, ancha qimmatga tushadi (mehnat jihatidan). Virtual machine'ga o'tkazish esa ancha oson.
+Agar siz Java dasturlash tili bilan tanish bo'lsangiz, **virtual mashina** (VM) atamasini eshitgan bo'lishingiz mumkin. Biz bu tushunchani soddaroq versiyasini ko'rib chiqamiz.  
 
-Stack - biz oldin stack haqida gaplashib o'tganmiz: [ko'ring](https://t.me/mahdiydev/121). Stack 2 xil amalni bajaradi. `push` stack'ga ma'lumot qo'shish. `pop` stack'dan oxirgi ma'lumotni olish. VM'da misol:
+**Virtual machine** – bu virtual mashina buyruqlari (bytecode) orqali amallarni bajaradigan maxsus dasturiy vosita. Hamda **stack** va **funksiyalarni** boshqarish imkoniyatini beradi.
+
+Virtual Machine nima uchun kerak?
+
+Hozirda kompyuterlar va boshqa qurilmalarda ishlatiladigan **uch xil asosiy protsessor turi** mavjud:  
+- **x86**  
+- **x64**  
+- **ARM**  
+
+Har bir protsessor o'zining unikal buyruqlar to'plamiga ega. High-level (yuqori darajadagi) dasturlash tillaridan bu protsessorlarning buyruqlariga to'g'ridan-to'g'ri o'girib chiqish murakkab va ko'p mehnat talab qiladi. Shuning uchun o'rtaga virtaul mashina qo'yiladi. Keyin bytecode'dan instruction'larga compile qilinadi.
+
+Bu yondashuv orqali dasturlarni turli platformalarda qayta yozmasdan ishlatish mumkin bo'ladi. Masalan, Java dasturi bir marta yozilib, turli operatsion tizim va qurilmalarda ishlaydi.
+
+Amallarni bajarish uchun xotira bo'laklarga (segmentlarga) bo'linadi. Segmentlar haqida batafsilroq ma'lumotni **Modern Assembly** mavzusida ko'rib chiqamiz. Hozir esa faqat **stack segmenti** haqida gaplashamiz.
+
+**Stack** – bu xotiraning maxsus qismi bo'lib, unda ma'lumotlar **tartibli** saqlanadi. Bu haqida oldinroq [mana bu yerda](https://t.me/mahdiydev/121) gaplashganmiz.
+
+**Stack** ikki asosiy amalni bajaradi:
+1. **`push`** – stack'ga ma'lumot qo'shadi.
+2. **`pop`** – stack'dan oxirgi qo'shilgan ma'lumotni olib tashlaydi.
+
+Stack'da o'zgaruvchini saqlash **Modern Assembly**da sal murakkabroq ishlaydi. Biz hozircha oddiyroq versiyasi ko'ramiz. Stack'dagi o'zgaruchilarni saqlash uchun xotiradan local, argument, static, temp, internal lar uchun joy ajratamiz.
+
+**VM** (virtual mashina) da bu amallar quyidagicha ishlaydi:
 ```
-push constant 3
-pop local 0
+push constant 3   // 3-ni stack'ga qo'shadi.
+pop local 0       // Stack'dan 3-ni olib, uni local 0'ga saqlaydi.
 ```
-Stackni o'zgaruvchilar uchun ishlatadigan bo'lsak, ayan bir o'zgaruvchi olish uchun 
+
+Virtual machina arifmetik amallarni ham qo'llab quvatlaydi. Arifmetik amallar quyidagilardan iborat:
+- `add` - qo'shish
+- `sub` - ayrish
+- `and` - va
+- `or`  - yoki
+- `neg` - manfiyga o'zgartirish
+- `not` - 0 bo'lsa 1 yoki 1 bo'lsa 0
+- `eq`  - teng
+- `gt`  - dan katta
+- `lt`  - dan kichik
+
+Funksiya:
+```
+function add 0      // local o'zgaruvchilar soni
+    push argument 0 // birinchi argument yuklash (arg0)
+    push argument 1 // ikkinchi argument yuklash (arg1)
+    add             // ikkasini qo'shish
+    return          // natijani qaytarish
+```
+
+Funksiyani chaqirish uchun:
+```
+function Sys.main 2  // local o'zgaruvchilar soni
+    push constant 10
+    push constant 20
+    call add 2       // funksiyani 10 va 20 argumentlar bilan chaqirish
+    pop local 0      // natijani local ga yuklash
+    push local 0     // local o'zgaruvchini saqlash
+    return
+```

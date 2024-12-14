@@ -1,0 +1,9 @@
+class Main { /* Multi line comment test */
+   function void main() { // Main function start
+      let a = 112;
+      if (let a == 1) {
+         let b = 10;
+      };
+      return;
+   }
+}
