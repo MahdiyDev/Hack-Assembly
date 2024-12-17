@@ -1,10 +1,14 @@
 #pragma once
 #include <stddef.h>
 #include <stdio.h>
-#ifndef UTILS_IMPLEMENTATION
-    #define UTILS_IMPLEMENTATION
-#endif // UTILS_IMPLEMENTATION
-#include "../utils.h"
+#include <string.h>
+
+#ifndef STRING_IMPLEMENTATION
+    #define STRING_IMPLEMENTATION
+#endif // STRING_IMPLEMENTATION
+#include "../dynamic_array/string.h"
+
+#include "error.h"
 
 typedef struct {
     const char *opening;
@@ -36,7 +40,7 @@ typedef struct {
     };
 
     location loc;
-} token;
+} lexer_token;    
 
 typedef struct {
     string_view content;
@@ -59,8 +63,9 @@ typedef struct {
 
 lexer lexer_create(const char *file_path, string_view content);
 const char* lexer_kind_name(lexer_kind k);
-bool get_token(lexer* l, token* t);
-
+Error* lexer_expect_id(lexer *l, lexer_token t, lexer_kind id);
+Error* lexer_expect_cstr(lexer_token t, const char* cstr);
+bool lexer_get_token(lexer* l, lexer_token* t);
 
 #ifdef LEXER_IMPLEMENTATION
 const char *lexer_kind_names[LEXER_COUNT_KINDS] = {
@@ -78,6 +83,22 @@ lexer lexer_create(const char *file_path, string_view content)
         .file_path = file_path,
         .content = content,
     };
+}
+
+Error* lexer_expect_id(lexer *l, lexer_token t, lexer_kind id)
+{
+    if (t.id != id) {
+        return error_f("%s:%zu:%zu: Expected: %s, but got %s: %.*s", t.loc.file_path, t.loc.row, t.loc.col,  lexer_kind_name(id), lexer_kind_name(t.id), sv_fmt(t.src));
+    }
+    return NULL;
+}
+
+Error* lexer_expect_cstr(lexer_token t, const char* cstr)
+{
+    if (!sv_equal_cstr(t.src, cstr)) {
+        return error_f("%s:%zu:%zu: %s expected but got: %.*s", t.loc.file_path, t.loc.row, t.loc.col, cstr, sv_fmt(t.src));
+    }
+    return NULL;
 }
 
 bool chop_char(lexer *l)
@@ -143,7 +164,7 @@ const char* lexer_kind_name(lexer_kind k)
     return lexer_kind_names[k];
 }
 
-bool get_token(lexer* l, token* t)
+bool lexer_get_token(lexer* l, lexer_token* t)
 {
     string_view content = sv_from_parts(l->content.data + l->cur, l->content.count);
 
@@ -197,13 +218,17 @@ another_trim_round:
 
     // Int
     if (isdigit(l->content.data[l->cur])) {
-        t->id = LEXER_INT;
         size_t n = 0;
         while (l->cur < l->content.count && isdigit(l->content.data[l->cur])) {
             t->int_value = t->int_value*10 + l->content.data[l->cur] - '0';
             n += 1;
             chop_char(l);
+            if (is_symbol(l->content.data[l->cur])) {
+                return false;
+            }
         }
+
+        t->id = LEXER_INT;
         t->src = sv_from_parts(content.data, n);
         
         return true;
@@ -214,7 +239,7 @@ another_trim_round:
         t->id = LEXER_SYMBOL;
         size_t n = 0;
         size_t begin = l->cur;
-        while (l->cur < l->content.count && is_symbol(l->content.data[l->cur])) {
+        while (l->cur < l->content.count && (is_symbol(l->content.data[l->cur]) || isdigit(l->content.data[l->cur]))) {
             n += 1;
             chop_char(l);
         }

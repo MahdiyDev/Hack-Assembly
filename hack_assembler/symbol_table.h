@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef STRING_IMPLEMENTATION
+#ifndef STRING_IMPLEMENTATION
     #define STRING_IMPLEMENTATION
 #endif // STRING_IMPLEMENTATION
 #include "../dynamic_array/string.h"
