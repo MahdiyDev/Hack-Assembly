@@ -19,9 +19,6 @@ typedef struct {
 
 typedef struct {
     char message[MAX_ERROR_MSG];
-    // const char* file_path;
-    // const char* func_name;
-    // int line;
     int trace_index;
     stack_trace stack_trace[MAX_ERROR_TRACE];
 } Error;
