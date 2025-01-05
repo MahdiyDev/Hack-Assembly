@@ -1,14 +1,17 @@
-#include "../dynamic_array/dynamic_array.h"
 #include <stdbool.h>
 #include <stdio.h>
+
 #define STRING_IMPLEMENTATION
 #include "../dynamic_array/string.h"
+
 #ifndef UTILS_IMPLEMENTATION
     #define UTILS_IMPLEMENTATION
 #endif // UTILS_IMPLEMENTATION
 #include "../utils.h"
+
 #define LEXER_IMPLEMENTATION
 #include "lexer.h"
+
 #include "error.h"
 
 #define return_defer(value) do { result = (value); goto defer; } while(0)
@@ -28,19 +31,17 @@ const char *keywords[] = {
     "return",
 };
 
-const char *puncts[] = {
-    "+",
-    "*",
-    "(",
-    ")",
-    "{",
-    "}",
-    "==",
-    "=",
-    ";",
-    ",",
-};
+const char *puncts[] = { "+", "*", "(", ")", "{", "}", "==", "=", ";", "," };
 
+const char* op_table[][2] = {
+    { "+", "ADD" },
+    { "-", "SUB" },
+    { "&", "AND" },
+    { "|", "OR" }, 
+    { "<", "LT" },
+    { ">", "GT" },
+    { "=", "EQ" },
+};
 
 Error* compile_parameter_list(lexer* l, lexer_token* t)
 {
@@ -100,7 +101,7 @@ Error* compile_var_dec(lexer* l, lexer_token* t)
 
     if (has_error(lexer_expect_cstr(*t, ";"))) return trace(error);
 
-    lexer_get_token(l, t); // get nex token
+    lexer_get_token(l, t); // get next token
     return NULL;
 }
 
@@ -121,6 +122,24 @@ Error* compile_expression(lexer* l, lexer_token* t)
     Error* error = NULL;
 
     if (has_error(compile_term(l, t))) return trace(error);
+
+    const char* expressions[] = { "+", "-", "*", "/", "&", "|", "<", ">", "=" };
+
+    while (sv_in_carr(t->src, expressions)) {
+        string_view op = t->src;
+
+        if (has_error(compile_term(l, t))) return trace(error);
+        
+        if (sv_in_ctable(op, op_table)) {
+            // write_arithmetic(self.op_table.get(op))
+        } else if (sv_equal_c(t->src, '*')) {
+            // write_call('Math.multiply', 2)
+        } else if (sv_equal_c(t->src, '/')) {
+            // write_call('Math.divide', 2)
+        } else {
+            return error_f("%.*s not supported op.", sv_fmt(op));
+        }
+    }
 
     return NULL;
 }
@@ -171,23 +190,23 @@ Error* compile_return_statement(lexer* l, lexer_token* t)
 
 Error* compile_statements(lexer* l, lexer_token* t)
 {
-    Error* e;
+    Error* error = NULL;
 
     const char* statements[] = { "if", "while", "let", "do", "return" };
     while (sv_in_carr(t->src, statements)) {
         if (sv_equal_cstr(t->src, "if")) {
-            e = compile_if_statement(l, t);
+            error = compile_if_statement(l, t);
         } else if (sv_equal_cstr(t->src, "let")) {
-            e = compile_let_statement(l, t);
+            error = compile_let_statement(l, t);
         } else if (sv_equal_cstr(t->src, "do")) {
-            e = compile_do_statement(l, t);
+            error = compile_do_statement(l, t);
         } else if (sv_equal_cstr(t->src, "while")) {
-            e = compile_while_statement(l, t);
+            error = compile_while_statement(l, t);
         } else if (sv_equal_cstr(t->src, "return")) {
-            e = compile_return_statement(l, t);
+            error = compile_return_statement(l, t);
         }
 
-        if (e != NULL) return e;
+        if (error != NULL) return trace(error);
     }
 
     return NULL;

@@ -42,11 +42,11 @@ string_view sv_trim_left(string_view sv);
 string_view sv_trim_right(string_view sv);
 string_view sv_trim(string_view sv);
 
-bool sv_in(string_view sv, const char** arr, int count);
+#define sv_in_carr(sv, arr) sv_in(sv, arr, arr_count(arr))
+bool sv_in(string_view sv, const char* arr[], int count);
 bool sv_in_sv(string_view a, string_view b);
 bool sv_in_cstr(string_view a, const char* cstr);
 bool sv_in_c(string_view a, const char c);
-#define sv_in_carr(sv, arr) sv_in(sv, arr, arr_count(arr))
 
 string_builder* sb_init(const char* cstr);
 void sb_free(string_builder* sb);
@@ -64,6 +64,13 @@ void sb_delete_c(string_builder* sb, int index);
 void sb_add_f(string_builder* sb, const char *format, ...);
 
 void sb_clear(string_builder* sb);
+
+#define sv_in_ctable(sv, table) sv_in_table(sv, table, arr_count(table))
+#define sv_get_ctable_key(sv, table) sv_get_table_key(sv, table, arr_count(table))
+#define sv_get_ctable_value(sv, table) sv_get_table_value(sv, table, arr_count(table))
+bool sv_in_table(string_view sv, const char* table[][2], int count);
+const char* sv_get_table_key(string_view sv, const char* table[][2], int count);
+const char* sv_get_table_value(string_view sv, const char* table[][2], int count);
 
 #ifdef STRING_IMPLEMENTATION
 #include <stdarg.h>
@@ -234,7 +241,7 @@ string_view sv_trim(string_view sv)
     return sv_trim_right(sv_trim_left(sv));
 }
 
-bool sv_in(string_view sv, const char** arr, int count)
+bool sv_in(string_view sv, const char* arr[], int count)
 {
     for (int i = 0; i < count; i++) {
         if (sv_equal(sv_from_cstr(arr[i]), sv)) {
@@ -264,6 +271,39 @@ bool sv_in_c(string_view a, const char c)
 		if (a.data[i] == c) return true;
 	}
 	return false;
+}
+
+bool sv_in_table(string_view sv, const char* table[][2], int count)
+{
+	for (int i = 0; i < count; i++) {
+		const char* key = table[i][0];
+        if (sv_equal(sv_from_cstr(key), sv)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+const char* sv_get_table_key(string_view sv, const char* table[][2], int count)
+{
+	for (int i = 0; i < count; i++) {
+		const char* key = table[i][0];
+        if (sv_equal(sv_from_cstr(key), sv)) {
+            return key;
+        }
+    }
+    return NULL;
+}
+
+const char* sv_get_table_value(string_view sv, const char* table[][2], int count)
+{
+	for (int i = 0; i < count; i++) {
+		const char* key = table[i][0];
+        if (sv_equal(sv_from_cstr(key), sv)) {
+            return table[i][1]; // value
+        }
+    }
+    return NULL;
 }
 
 string_view sb_to_sv(string_builder* sb)
